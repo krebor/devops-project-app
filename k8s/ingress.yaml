@@ -1,0 +1,51 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ticketing-ingress
+  namespace: ticketing
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+spec:
+  ingressClassName: nginx
+  rules:
+    # Zamijeni "ticketing.local" stvarnim hostnameom klastera (ili koristi nip.io za IP)
+    - host: ticketing.local
+      http:
+        paths:
+          # /api/... → api pod (rewrite-target anotacija iznad uklanja /api prefix)
+          - path: /api(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: api
+                port:
+                  number: 8080
+          # / → frontend pod
+          - path: /()(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 3000
+
+# ────────────────────────────────────────────────────────────────────────────
+# OpenShift alternativa: koristi Route umjesto Ingress objekata
+#
+#   oc expose svc/frontend -n ticketing
+#   oc expose svc/api     -n ticketing --path /api
+#
+# Ili deklarativno:
+#
+#   apiVersion: route.openshift.io/v1
+#   kind: Route
+#   metadata:
+#     name: frontend
+#     namespace: ticketing
+#   spec:
+#     to:
+#       kind: Service
+#       name: frontend
+#     port:
+#       targetPort: 3000
+# ────────────────────────────────────────────────────────────────────────────

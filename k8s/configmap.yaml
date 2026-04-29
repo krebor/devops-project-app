@@ -1,0 +1,38 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ticketing-config
+  namespace: ticketing
+data:
+  POSTGRES_HOST: postgres
+  POSTGRES_PORT: "5432"
+  POSTGRES_DB: ticketing
+  POSTGRES_USER: ticketing_user
+  REDIS_HOST: redis
+  REDIS_PORT: "6379"
+  API_PORT: "8080"
+  FRONTEND_PORT: "3000"
+  QUEUE_NAME: ticket_orders
+  NODE_ENV: production
+  # Preglednik dohvaća /config s frontenda, dobije ovaj URL, pa zove ${apiBaseUrl}/events itd.
+  # Prefix "/" znači same-origin — radi s path-based Ingress routingom (vidi ingress.yaml).
+  API_BASE_URL: /api
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-initdb
+  namespace: ticketing
+data:
+  init.sql: |
+    CREATE TABLE IF NOT EXISTS ticket_orders (
+        id SERIAL PRIMARY KEY,
+        order_id TEXT UNIQUE NOT NULL,
+        event_id TEXT NOT NULL,
+        customer_email TEXT NOT NULL,
+        quantity INTEGER NOT NULL CHECK (quantity > 0),
+        status TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_ticket_orders_created_at ON ticket_orders (created_at DESC);

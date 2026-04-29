@@ -1,0 +1,87 @@
+name: CI — build, scan, push
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Minimalne permissione — princip least-privilege
+permissions:
+  contents: read
+  packages: write        # potrebno za push na GHCR
+  security-events: write # potrebno za upload SARIF u GitHub Security tab
+
+jobs:
+  build-scan-push:
+    name: ${{ matrix.service }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false  # svi servisi se skeniraju čak i ako jedan ne prođe quality gate
+      matrix:
+        service: [api, frontend, worker]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Login se radi samo pri pushu na main — PR-ovi samo buildaju lokalno
+      - name: Log in to GHCR
+        if: github.event_name == 'push'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Build u lokalni Docker daemon (push: false, load: true)
+      # Trivy skenira lokalnu sliku — ništa ne odlazi na registry dok ne prođe quality gate
+      - name: Build slike
+        uses: docker/build-push-action@v5
+        with:
+          context: ./${{ matrix.service }}
+          file: ./${{ matrix.service }}/Containerfile
+          target: production
+          push: false
+          load: true
+          tags: |
+            ghcr.io/krebor/devops-project-app-${{ matrix.service }}:${{ github.sha }}
+            ghcr.io/krebor/devops-project-app-${{ matrix.service }}:latest
+
+      # Quality gate: job pada ako postoje CRITICAL ili HIGH ranjivosti koje imaju fix
+      # ignore-unfixed: true — preskačemo OS ranjivosti bez dostupnog patcha
+      - name: Trivy — sigurnosni scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ghcr.io/krebor/devops-project-app-${{ matrix.service }}:${{ github.sha }}
+          format: sarif
+          output: trivy-${{ matrix.service }}.sarif
+          severity: CRITICAL,HIGH
+          exit-code: '1'
+          ignore-unfixed: true
+
+      # Uvijek uploadaj report — čak i ako je quality gate pao (if: always())
+      - name: Upload scan reporta (artifact)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-report-${{ matrix.service }}
+          path: trivy-${{ matrix.service }}.sarif
+          retention-days: 30
+
+      # Prikazuje rezultate u GitHub Security → Code scanning (public repo: besplatno)
+      - name: Upload na GitHub Security tab
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-${{ matrix.service }}.sarif
+          category: trivy-${{ matrix.service }}
+
+      # Push se izvodi SAMO ako: (a) push na main I (b) Trivy nije pao
+      # Zbog exit-code: '1' u Trivy koraku, ovaj korak se preskače ako quality gate nije prošao
+      - name: Push slike na GHCR
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          docker push ghcr.io/krebor/devops-project-app-${{ matrix.service }}:${{ github.sha }}
+          docker push ghcr.io/krebor/devops-project-app-${{ matrix.service }}:latest
