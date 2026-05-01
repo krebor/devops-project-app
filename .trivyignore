@@ -1,0 +1,8 @@
+# CVE-2026-33671: ReDoS u picomatch 4.0.3 (fix: 4.0.4)
+# Lokacija: usr/local/lib/node_modules/npm/node_modules/picomatch
+# Radi se o npm CLI alatu ugrađenom u node:22-alpine base image,
+# a ne o aplikacijskoj zavisnosti. Ranjivost utječe isključivo na
+# npm CLI (nije runtime komponenta aplikacije) i nije eksploatabilna
+# u deployment kontekstu. Fix zahtijeva update base imagea koji
+# je u nadležnosti Node.js Docker tima, ne aplikacijskog koda.
+CVE-2026-33671

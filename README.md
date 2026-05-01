@@ -10,14 +10,15 @@ Platforma demonstrira cjeloviti DevSecOps tok jedne višeslojne aplikacije: od l
 
 1. [Pregled aplikacije i arhitekture](#pregled-aplikacije-i-arhitekture)
 2. [Struktura repozitorija](#struktura-repozitorija)
-3. [Brzi početak (TL;DR)](#brzi-po%C4%8Detak-tldr)
-4. [Dio 1 - Lokalni razvoj (Compose)](#dio-1--lokalni-razvoj-compose)
-5. [Dio 2 - Kubernetes deployment](#dio-2--kubernetes-deployment)
-6. [Dio 3 - CI/CD pipeline](#dio-3--cicd-pipeline)
+3. [Brzi početak (TL;DR)](#brzi-početak-tldr)
+4. [Dio 1 - Lokalni razvoj (Compose)](#dio-1---lokalni-razvoj-compose)
+5. [Dio 2 - Kubernetes deployment](#dio-2---kubernetes-deployment)
+6. [Dio 3 - CI/CD pipeline](#dio-3---cicd-pipeline)
 7. [DevSecOps kontrole](#devsecops-kontrole)
 8. [API referenca](#api-referenca)
 9. [Troubleshooting](#troubleshooting)
 10. [Akademska napomena](#akademska-napomena)
+11. [Napomena o umjetnoj inteligenciji](#napomena-o-umjetnoj-inteligenciji)
 
 ---
 
@@ -76,6 +77,11 @@ devops-project-app/
 │   ├── package.json
 │   └── src/worker.js
 │
+├── docs/
+│   └── diagrams/
+│       ├── diagram1.png            # tok podataka između servisa
+│       └── diagram2.png            # koraci CI/CD pipeline-a
+│
 ├── infra/
 │   └── postgres/init.sql           # inicijalni DB schema (također u ConfigMap-u)
 │
@@ -113,7 +119,7 @@ cp .env.example .env
 podman compose up --build      # ili: docker compose up --build
 ```
 
-Otvori `http://localhost:3000` u pregledniku. Detalji u [Dio 1](#dio-1--lokalni-razvoj-compose).
+Otvori `http://localhost:3000` u pregledniku. Detalji u [Dio 1](#dio-1---lokalni-razvoj-compose).
 
 ---
 
@@ -430,6 +436,8 @@ Ranjiva slika nikada ne završi u registry-ju. To znači da Kubernetes manifesti
 
 `ignore-unfixed: true` - preskačemo OS-level CVE-ove za koje ne postoji upstream patch (smanjuje šum za stvari koje ionako ne možemo riješiti).
 
+`.trivyignore` - za CVE-ove koji su izvan kontrole projekta i nisu eksploatabilni u deployment kontekstu, prihvaćeni rizik se dokumentira u `.trivyignore` s obrazloženjem. Primjer: **CVE-2026-33671** (ReDoS u `picomatch`) koji se nalazi u npm CLI alatu ugrađenom u `node:22-alpine` base image (`usr/local/lib/node_modules/npm/`) — nije runtime komponenta aplikacije, fix zahtijeva update base imagea koji je u nadležnosti Node.js Docker tima.
+
 ### Tagovi slika
 
 Svaki uspješan build na `main`-u producira dva taga:
@@ -537,6 +545,6 @@ Implementirani ishodi:
 
 ---
 
-## Napomena o korištenju alata umjetne inteligencije
+## Napomena o umjetnoj inteligenciji
 
 Dijelovi ovog repozitorija kreirani su uz pomoć alata umjetne inteligencije.
